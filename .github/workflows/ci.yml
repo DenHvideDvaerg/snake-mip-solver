@@ -1,0 +1,50 @@
+name: CI
+
+# Define the Python version for coverage reporting at the workflow level
+env:
+  COVERAGE_PYTHON_VERSION: '3.13'
+
+on:
+  push:
+    paths:
+      - '**.py'  # Run on any Python file changes
+      - 'requirements.txt'  # Run when requirements change
+      - '.github/workflows/**'  # Run on GitHub Actions workflow changes
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        
+    - name: Install package in development mode with dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install -e .
+      # This installs test deps from requirements.txt and the package in editable mode
+        
+    - name: Test with pytest
+      run: |
+        pytest tests/ --cov=snake_mip_solver --cov-config=.coveragerc --cov-report=term --cov-report=xml --cov-report=html
+        
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v4
+      if: matrix.python-version == env.COVERAGE_PYTHON_VERSION
+      with:
+        file: coverage.xml
+        token: ${{ secrets.CODECOV_TOKEN }}

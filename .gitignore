@@ -1,0 +1,6 @@
+__pycache__/
+.venv
+.vscode/
+snake_mip_solver.egg-info/
+dist/
+build/

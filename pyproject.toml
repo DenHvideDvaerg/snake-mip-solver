@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "snake-mip-solver"
+version = "0.1.0"
+description = "A Snake puzzle solver using Mixed Integer Programming (MIP)"
+readme = "README.md"
+authors = [{name = "Rasmus Ørnstrup Mikkelsen"}]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10", 
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Games/Entertainment :: Puzzle Games",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Operating System :: OS Independent",
+]
+keywords = ["puzzle", "solver", "mixed-integer-programming", "optimization", "snake"]
+requires-python = ">=3.9"
+dependencies = [
+    "ortools",
+]
+
+[project.urls]
+"Documentation" = "https://github.com/DenHvideDvaerg/snake-mip-solver/blob/main/model.md"
+"Homepage" = "https://github.com/DenHvideDvaerg/snake-mip-solver"
+"Bug Reports" = "https://github.com/DenHvideDvaerg/snake-mip-solver/issues"
+"Source" = "https://github.com/DenHvideDvaerg/snake-mip-solver"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = ["--strict-markers", "--strict-config"]
+
+[tool.coverage.run]
+source = ["snake_mip_solver"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+]
