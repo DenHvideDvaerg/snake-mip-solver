@@ -273,3 +273,53 @@ class SnakePuzzle:
     def get_end_cell(self) -> Tuple[int, int]:
         """Get the end cell position."""
         return self.end_cell
+    
+    def get_board_visualization(self, snake_positions: Optional[Set[Tuple[int, int]]] = None, 
+                     show_indices: bool = False) -> str:
+        """
+        Create a string representation of the puzzle.
+        
+        Args:
+            snake_positions: Optional set of snake body positions to display
+            show_indices: Whether to show row/column indices
+            
+        Returns:
+            String representation of the puzzle
+        """
+        snake_positions = snake_positions or set()
+        lines = []
+        
+        # Header with column indices and sums
+        if show_indices:
+            header = "    " + " ".join(str(i) for i in range(self.cols))
+            lines.append(header)
+            col_sums_line = "    " + " ".join(str(s) if s is not None else "?" for s in self.col_sums)
+        else:
+            col_sums_line = "  " + " ".join(str(s) if s is not None else "?" for s in self.col_sums)
+        
+        lines.append(col_sums_line)
+        
+        # Board rows
+        for row in range(self.rows):
+            row_parts = []
+            
+            if show_indices:
+                row_parts.append(str(row))
+            
+            row_sum_str = str(self.row_sums[row]) if self.row_sums[row] is not None else "?"
+            row_parts.append(row_sum_str)
+            
+            for col in range(self.cols):
+                pos = (row, col)
+                if pos == self.start_cell:
+                    row_parts.append('S')
+                elif pos == self.end_cell:
+                    row_parts.append('E')
+                elif pos in snake_positions:
+                    row_parts.append('x') # █
+                else:
+                    row_parts.append('_')
+            
+            lines.append(' '.join(row_parts))
+        
+        return '\n'.join(lines)
