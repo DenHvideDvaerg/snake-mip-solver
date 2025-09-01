@@ -8,7 +8,7 @@ class TestSnakeSolver:
     def test_solver_creation(self):
         """Test creating a solver with a valid puzzle."""
         # Basic solver creation should work with template defaults
-        puzzle = SnakePuzzle()
+        puzzle = SnakePuzzle([1,1],[1,1],(0,0),(1,1))
         solver = SnakeSolver(puzzle)
         
         assert solver.puzzle == puzzle
