@@ -55,7 +55,7 @@ class SnakePuzzle:
         self.end_cell = end_cell
         
         # Offset patterns for different types of tile relationships
-        self._adjacent_offsets = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        self._orthogonal_offsets = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         self._diagonal_offsets = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
         
         # Validate puzzle configuration
@@ -178,18 +178,17 @@ class SnakePuzzle:
             
             for diagonal_pos in diagonal_neighbors:
                 if diagonal_pos in solution:
-                    dr, dc = diagonal_pos
                     # Check if they are connected by orthogonal cells
                     # If there are orthogonal connections, diagonal touching is allowed
-                    orthogonal_connections = [
-                        (row - 1, col) in solution and (dr, col) in solution,  # vertical connection
-                        (row + 1, col) in solution and (dr, col) in solution,  # vertical connection
-                        (row, col - 1) in solution and (row, dc) in solution,  # horizontal connection
-                        (row, col + 1) in solution and (row, dc) in solution   # horizontal connection
-                    ]
+                    orthogonal_neighbors = self.get_tiles_by_offsets(position, self._orthogonal_offsets)
+                    diagonal_orthogonal_neighbors = self.get_tiles_by_offsets(diagonal_pos, self._orthogonal_offsets)
+                    
+                    # Check if there's an orthogonal path connecting the two diagonal cells
+                    shared_orthogonal = orthogonal_neighbors.intersection(diagonal_orthogonal_neighbors)
+                    orthogonal_connections = shared_orthogonal.intersection(solution)
                     
                     # If diagonal cells touch but no orthogonal connection exists, it's invalid
-                    if not any(orthogonal_connections):
+                    if not orthogonal_connections:
                         return False
         
         return True
@@ -215,8 +214,8 @@ class SnakePuzzle:
         # Count neighbors for each cell
         neighbor_count = {}
         for position in solution:
-            adjacent_neighbors = self.get_tiles_by_offsets(position, self._adjacent_offsets)
-            count = len(adjacent_neighbors.intersection(solution))
+            orthogonal_neighbors = self.get_tiles_by_offsets(position, self._orthogonal_offsets)
+            count = len(orthogonal_neighbors.intersection(solution))
             neighbor_count[position] = count
         
         # Check start and end cells have exactly 1 neighbor
@@ -239,15 +238,15 @@ class SnakePuzzle:
                 return
             visited.add(current)
             
-            adjacent_neighbors = self.get_tiles_by_offsets(current, self._adjacent_offsets)
-            for neighbor in adjacent_neighbors:
+            orthogonal_neighbors = self.get_tiles_by_offsets(current, self._orthogonal_offsets)
+            for neighbor in orthogonal_neighbors:
                 if neighbor in solution and neighbor not in visited:
                     dfs(neighbor)
         
         # Start DFS from start_cell
         dfs(self.start_cell)
         
-        # All cells should be reachable from start, and end should be reachable
+        # All cells should be reachable from start
         return len(visited) == len(solution) and self.end_cell in visited
     
     def get_grid_size(self) -> Tuple[int, int]:
