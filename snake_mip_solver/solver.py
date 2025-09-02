@@ -195,7 +195,7 @@ class SnakeSolver:
             
             return solution
         elif status == pywraplp.Solver.FEASIBLE:
-             # This should not happen since the problem doesn't have an objective function
+            # This should not happen since the problem doesn't have an objective function.
             raise RuntimeError("Unexpected FEASIBLE status for constraint satisfaction problem")
         elif status == pywraplp.Solver.INFEASIBLE:
             if verbose:
