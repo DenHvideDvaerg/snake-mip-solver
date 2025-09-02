@@ -33,16 +33,6 @@ def example_adjacent_touching():
     )
     return puzzle
 
-def example_8x8():
-    """8x8 example from https://puzzlegenius.org/snake/"""
-    puzzle = SnakePuzzle(
-        row_sums=[4, 2, 2, 3, 1, 3, 2, 6],
-        col_sums=[3, 2, 7, 2, 2, 4, 1, 2],
-        start_cell=(2, 5),
-        end_cell=(6, 7)
-    )
-    return puzzle
-
 def example_6x6_easy():
     """6x6 easy example"""
     puzzle = SnakePuzzle(
@@ -102,18 +92,6 @@ def solve_puzzle(puzzle, name):
 
 def main():
     # Solve different puzzle examples
-    # puzzle_3x3 = example_3x3()
-    # solve_puzzle(puzzle_3x3, "3x3 Simple")
-
-    # puzzle_diag = example_diagonal_touching()
-    # solve_puzzle(puzzle_diag, "5x5 Diagonal Touching")
-
-    # puzzle_adjacent_touching = example_adjacent_touching()
-    # solve_puzzle(puzzle_adjacent_touching, "4x4 Adjacent Touching")
-
-    # puzzle_8x8 = example_8x8()
-    # solve_puzzle(puzzle_8x8, "8x8")
-
     puzzle_6x6 = example_6x6_easy()
     solve_puzzle(puzzle_6x6, "6x6 Easy")
 
