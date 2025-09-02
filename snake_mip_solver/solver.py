@@ -1,6 +1,6 @@
 from .puzzle import SnakePuzzle
 from ortools.linear_solver import pywraplp
-from typing import Dict, Set, Tuple, Optional
+from typing import Dict, Tuple, Optional
 
 
 class SnakeSolver:
@@ -31,11 +31,8 @@ class SnakeSolver:
         if not self.solver:
             raise ValueError(f"Could not create solver of type '{solver_type}'")
         
-        # Dictionary to store variables - adapt based on your puzzle needs
-        # Example: self.variables: Dict[Tuple[int, int], pywraplp.Variable] = {}
-        self.variables: Dict[Tuple[int, int], pywraplp.Variable] = {}
-        
         # Setup the mathematical model
+        self.variables: Dict[Tuple[int, int], pywraplp.Variable] = {}
         self._add_variables()
         self._add_constraints()
 
@@ -61,7 +58,7 @@ class SnakeSolver:
         self._add_col_sum_constraints()
         self._add_snake_path_constraints()
         self._add_diagonal_touching_constraints()
-        self._add_adjacent_touching_constraints()
+        self._add_no_2x2_block_constraints()
     
     def _add_start_end_constraints(self) -> None:
         """
@@ -87,7 +84,7 @@ class SnakeSolver:
                 # Get adjacent cells
                 adjacent_positions = self.puzzle.get_tiles_by_offsets(position, self.puzzle._orthogonal_offsets)
                 adjacent_vars = [self.variables[adj_pos] for adj_pos in adjacent_positions]
-                neighbor_sum = self.solver.Sum(adjacent_vars)
+                neighbor_sum = sum(adjacent_vars) # type: ignore
                 
                 if position == self.puzzle.start_cell or position == self.puzzle.end_cell:
                     # Start and end cells: must have exactly 1 neighbor
@@ -126,15 +123,18 @@ class SnakeSolver:
     
     def _add_diagonal_touching_constraints(self) -> None:
         """
-        Diagonal touching constraints: x_ij + x_{i-1,j-1} <= x_{i-1,j} + x_{i,j-1} + 1
-        Two diagonal cells can only both be activated if there's an orthogonal connection.
+        Diagonal touching constraints: Two diagonal cells can only both be activated 
+        if there's an orthogonal connection between them.
+        
+        Only checks upper diagonals to avoid duplicate constraints.
         """
         for row in range(self.puzzle.rows):
             for col in range(self.puzzle.cols):
                 position = (row, col)
                 
-                # Check all four diagonal directions
-                for diag_offset in self.puzzle._diagonal_offsets:
+                # Only check upper-left and upper-right diagonals to avoid duplicates
+                # This covers all diagonal pairs exactly once
+                for diag_offset in [(-1, -1), (-1, 1)]:
                     diag_pos = self.puzzle.get_tile_by_offset(position, diag_offset)
                     if diag_pos is not None:
                         # Get the two orthogonal cells that could connect the diagonal pair
@@ -144,15 +144,11 @@ class SnakeSolver:
                         
                         if ortho_pos1 is not None and ortho_pos2 is not None:
                             # x_ij + x_diagonal <= x_ortho1 + x_ortho2 + 1
-                            left_vars = [self.variables[position], self.variables[diag_pos]]
-                            right_vars = [self.variables[ortho_pos1], self.variables[ortho_pos2]]
-                            self.solver.Add(
-                                self.solver.Sum(left_vars) <= self.solver.Sum(right_vars) + 1
-                            )
-    
-    def _add_adjacent_touching_constraints(self) -> None:
+                            self.solver.Add(self.variables[position] + self.variables[diag_pos] <= self.variables[ortho_pos1] + self.variables[ortho_pos2] + 1) # type: ignore
+
+    def _add_no_2x2_block_constraints(self) -> None:
         """
-        Adjacent touching constraints: For all 2x2 sub-grids, at most 3 variables can be activated.
+        No 2x2 block constraints: For all 2x2 sub-grids, at most 3 variables can be activated.
         This prevents forming disconnected 2x2 blocks.
         """
         for row in range(self.puzzle.rows - 1):
@@ -167,7 +163,7 @@ class SnakeSolver:
                 
                 # Sum of variables in 2x2 grid <= 3
                 grid_vars = [self.variables[pos] for pos in positions]
-                self.solver.Add(self.solver.Sum(grid_vars) <= 3)
+                self.solver.Add(sum(grid_vars) <= 3) # type: ignore
 
     def solve(self, verbose: bool = False) -> Optional[set]:
         """
@@ -200,7 +196,7 @@ class SnakeSolver:
             return solution
         elif status == pywraplp.Solver.FEASIBLE:
              # This should not happen since the problem doesn't have an objective function
-            raise RuntimeError("What the... Solver returned FEASIBLE status for a constraint satisfaction problem??")
+            raise RuntimeError("Unexpected FEASIBLE status for constraint satisfaction problem")
         elif status == pywraplp.Solver.INFEASIBLE:
             if verbose:
                 print("No solution exists for this puzzle")
