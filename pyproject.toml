@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A Snake puzzle solver using Mixed Integer Programming (MIP)"
 readme = "README.md"
 authors = [{name = "Rasmus Ørnstrup Mikkelsen"}]
-license = {text = "MIT"}
+license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
