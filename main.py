@@ -80,7 +80,7 @@ def solve_puzzle(puzzle, name):
         
         # Display the board with solution
         print("\nPuzzle with solution:")
-        print(puzzle.get_board_visualization(solution, show_indices=True))
+        print(puzzle.get_board_visualization(solution, show_indices=False))
         
         # Validate solution
         if puzzle.is_valid_solution(solution):
