@@ -288,13 +288,28 @@ class SnakePuzzle:
         snake_positions = snake_positions or set()
         lines = []
         
+        # Calculate the maximum width needed for row sums to ensure proper alignment
+        max_row_sum_width = max(
+            len(str(s)) if s is not None else 1 
+            for s in self.row_sums
+        )
+        
+        # Calculate the maximum width needed for column indices if shown
+        max_col_index_width = len(str(self.cols - 1)) if show_indices else 0
+        
         # Header with column indices and sums
         if show_indices:
-            header = "    " + " ".join(str(i) for i in range(self.cols))
+            # Row index + row sum padding + space
+            prefix_width = max_col_index_width + max_row_sum_width + 2
+            header = " " * prefix_width + " ".join(f"{i:>{max_col_index_width}}" for i in range(self.cols))
             lines.append(header)
-            col_sums_line = "    " + " ".join(str(s) if s is not None else "?" for s in self.col_sums)
+            col_sums_line = " " * prefix_width + " ".join(
+                f"{str(s) if s is not None else '?':>{max_col_index_width}}" for s in self.col_sums
+            )
         else:
-            col_sums_line = "  " + " ".join(str(s) if s is not None else "?" for s in self.col_sums)
+            # Just row sum padding + space  
+            prefix_width = max_row_sum_width + 1
+            col_sums_line = " " * prefix_width + " ".join(str(s) if s is not None else "?" for s in self.col_sums)
         
         lines.append(col_sums_line)
         
@@ -303,21 +318,26 @@ class SnakePuzzle:
             row_parts = []
             
             if show_indices:
-                row_parts.append(str(row))
+                row_parts.append(f"{row:>{max_col_index_width}}")
             
             row_sum_str = str(self.row_sums[row]) if self.row_sums[row] is not None else "?"
-            row_parts.append(row_sum_str)
+            row_parts.append(f"{row_sum_str:>{max_row_sum_width}}")
             
             for col in range(self.cols):
                 pos = (row, col)
                 if pos == self.start_cell:
-                    row_parts.append('S')
+                    cell_str = 'S'
                 elif pos == self.end_cell:
-                    row_parts.append('E')
+                    cell_str = 'E'
                 elif pos in snake_positions:
-                    row_parts.append('x') # █
+                    cell_str = 'x'
                 else:
-                    row_parts.append('_')
+                    cell_str = '_'
+                
+                if show_indices:
+                    row_parts.append(f"{cell_str:>{max_col_index_width}}")
+                else:
+                    row_parts.append(cell_str)
             
             lines.append(' '.join(row_parts))
         
