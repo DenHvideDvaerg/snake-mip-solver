@@ -2,6 +2,17 @@ from snake_mip_solver import SnakePuzzle, SnakeSolver
 import time
 
 
+def example_3x3():
+    """Simple 3x3 example for testing"""
+    puzzle = SnakePuzzle(
+        row_sums=[2, 1, 2],
+        col_sums=[1, 3, 1],
+        start_cell=(0, 0),
+        end_cell=(2, 2)
+    )
+    return puzzle
+
+
 def example_8x8():
     """8x8 example from https://puzzlegenius.org/snake/"""
     puzzle = SnakePuzzle(
@@ -13,75 +24,89 @@ def example_8x8():
     return puzzle
 
 
-def main():
-    """
-    Example usage of the Snake solver.
-    
-    """
-    print("Snake MIP Solver - Example Usage")
-    print("=" * 50)
-    
+def example_diagonal_touching():
+    """Diagonal touching example (infeasible)"""
+    puzzle = SnakePuzzle(
+        row_sums=[2, 3, 3, 0, 0],
+        col_sums=[0, 3, 2, 2, 1],
+        start_cell=(0, 2),
+        end_cell=(1, 4)
+    )
+    return puzzle
 
-    try:
-        puzzle = example_8x8()
-        print(f"Created puzzle: {puzzle}")
+def example_adjacent_touching():
+    """Adjacent touching example (infeasible)"""
+    puzzle = SnakePuzzle(
+        row_sums=[1, 4, 3, 0],
+        col_sums=[3, 2, 1, 2],
+        start_cell=(0, 0),
+        end_cell=(3, 3)
+    )
+    return puzzle
+
+def example_12x12_evil():
+    """12x12 'Evil' puzzle from https://gridpuzzle.com/snake/evil-12"""
+    puzzle = SnakePuzzle(
+        row_sums=[11, 2, 7, 4, 4, None, None, None, 3, 2, None, 5],
+        col_sums=[9, 7, None, 2, 5, 6, None, None, 5, None, None, None],
+        start_cell=(2, 6),
+        end_cell=(7, 5)
+    )
+    return puzzle
+
+def solve_puzzle(puzzle, name):
+    """Solve a snake puzzle and display results"""
+    print(f"\n" + "="*60)
+    print(f"SOLVING {name.upper()}")
+    print("="*60)
+    
+    # Create and use the solver
+    solver = SnakeSolver(puzzle)
+    
+    print("Solver information:")
+    info = solver.get_solver_info()
+    for key, value in info.items():
+        print(f"  {key}: {value}")
+    
+    print("\nSolving...")
+    start_time = time.time()
+    solution = solver.solve(verbose=False)
+    solve_time = time.time() - start_time
+    
+    if solution:
+        print(f"\nSolution found in {solve_time:.3f} seconds!")
+        print(f"Solution has {len(solution)} filled cells")
+        print(f"Solution: {sorted(list(solution))}")
         
-        # Create solver
-        solver = SnakeSolver(puzzle)
-        print("Solver initialized successfully")
+        # Display the board with solution
+        print("\nPuzzle with solution:")
+        print(puzzle.get_board_visualization(solution, show_indices=True))
         
-        # Solve the puzzle
-        print("\nSolving puzzle...")
-        start_time = time.time()
-        solution = solver.solve(verbose=True)
-        solve_time = time.time() - start_time
-        
-        # Display results
-        if solution is not None:
-            print(f"\n✅ Solution found in {solve_time:.3f} seconds!")
-            print(f"Solution: {solution}")
-            print(puzzle.get_board_visualization())
-            
-            manual_solution = set()
-            manual_solution.add((2, 5))
-            manual_solution.add((1, 5))
-            manual_solution.add((0, 5))
-            manual_solution.add((0, 4))
-            manual_solution.add((0, 3))
-            manual_solution.add((0, 2))
-            manual_solution.add((1, 2))
-            manual_solution.add((2, 2))
-            manual_solution.add((3, 2))
-            manual_solution.add((3, 1))
-            manual_solution.add((3, 0))
-            manual_solution.add((4, 0))
-            manual_solution.add((5, 0))
-            manual_solution.add((5, 1))
-            manual_solution.add((5, 2))
-            manual_solution.add((6, 2))
-            manual_solution.add((7, 2))
-            manual_solution.add((7, 3))
-            manual_solution.add((7, 4))
-            manual_solution.add((7, 5))
-            manual_solution.add((7, 6))
-            manual_solution.add((7, 7))
-            manual_solution.add((6, 7))
-            print(puzzle.get_board_visualization(manual_solution, show_indices=True))
-            print(f"Manual solution valid? {puzzle.is_valid_solution(manual_solution)}")
-            # TODO: Add solution visualization or validation
-            # Example:
-            # if puzzle.is_valid_solution(solution):
-            #     print("Solution is valid!")
-            #     display_solution(puzzle, solution)
-            # else:
-            #     print("Solution validation failed!")
+        # Validate solution
+        if puzzle.is_valid_solution(solution):
+            print("✅ Solution is valid!")
         else:
-            print(f"\nNo solution found (took {solve_time:.3f} seconds)")
-            
-    except Exception as e:
-        print(f"Error: {e}")
-        print("Make sure to implement your puzzle class and solver logic!")
+            print("❌ Solution validation failed!")
+    else:
+        print(f"\nNo solution found (took {solve_time:.3f} seconds)")
 
+
+def main():
+    # Solve different puzzle examples
+    puzzle_3x3 = example_3x3()
+    solve_puzzle(puzzle_3x3, "3x3 Simple")
+
+    puzzle_diag = example_diagonal_touching()
+    solve_puzzle(puzzle_diag, "5x5 Diagonal Touching")
+
+    puzzle_adjacent_touching = example_adjacent_touching()
+    solve_puzzle(puzzle_adjacent_touching, "4x4 Adjacent Touching")
+
+    puzzle_8x8 = example_8x8()
+    solve_puzzle(puzzle_8x8, "8x8")
+
+    puzzle_12x12 = example_12x12_evil()
+    solve_puzzle(puzzle_12x12, "12x12 Evil")
 
 if __name__ == "__main__":
     main()
