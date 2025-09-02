@@ -32,6 +32,10 @@ dependencies = [
 "Bug Reports" = "https://github.com/DenHvideDvaerg/snake-mip-solver/issues"
 "Source" = "https://github.com/DenHvideDvaerg/snake-mip-solver"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["snake_mip_solver*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
