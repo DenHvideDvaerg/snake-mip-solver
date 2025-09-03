@@ -173,7 +173,7 @@ class TestSnakeSolver:
         assert "solver_type:" in output
         assert "num_variables:" in output
         assert "num_constraints:" in output
-        assert "Solution found with" in output
+        assert "Valid solution found with" in output
         assert solution is not None
 
     def test_verbose_solve_infeasible(self):
