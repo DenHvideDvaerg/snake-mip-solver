@@ -48,8 +48,7 @@ class SnakePuzzleGenerator:
             random.seed(self.seed)
         
         # Calculate realistic target length based on snake constraints
-        max_realistic_length = self._calculate_max_path_length(rows, cols)
-        target_length = max(2, min(int(rows * cols * fill_percentage), max_realistic_length))
+        target_length = max(2, int(rows * cols * fill_percentage))
         
         # Try multiple starting points for better success rate
         max_attempts = 50
@@ -59,6 +58,7 @@ class SnakePuzzleGenerator:
         
         for attempt in range(max_attempts):
             try:
+                print(f"Attempt {attempt + 1}/{max_attempts}")
                 # Generate path using organic growth strategy
                 snake_path, start_cell, end_cell = self._generate_snake_path_organic(
                     rows, cols, target_length
@@ -101,40 +101,12 @@ class SnakePuzzleGenerator:
         else:
             raise RuntimeError("Generated path is not a valid solution")
     
-    def _calculate_max_path_length(self, rows: int, cols: int) -> int:
-        """
-        Calculate realistic maximum snake path length.
-        
-        For a snake that cannot touch itself diagonally, the theoretical maximum
-        is significantly less than the total grid size. This uses a conservative
-        estimate based on checkerboard patterns and connectivity constraints.
-        
-        Args:
-            rows: Grid rows
-            cols: Grid columns
-            
-        Returns:
-            Conservative estimate of maximum achievable path length
-        """
-        total_cells = rows * cols
-        
-        # Conservative heuristic based on snake constraints:
-        # - Checkerboard pattern: ~50% theoretical maximum
-        # - Connectivity requirements: reduce further
-        # - Path constraints: additional reduction
-        # Conservative estimate: 35-40% of grid
-        max_theoretical = int(total_cells * 0.35)
-        
-        # Ensure minimum of 2 (start + end)
-        return max(2, max_theoretical)
-    
     def _generate_snake_path_organic(self, rows: int, cols: int, 
                                 target_length: int) -> Tuple[Set[Tuple[int, int]], Tuple[int, int], Tuple[int, int]]:
         """
-        Generate a valid snake path using organic linear growth with randomness.
+        Generate a valid snake path using simple random walk with smart constraints.
         
-        Creates interesting snake patterns by using random walks that maintain
-        proper linear connectivity. Start and end cells have exactly 1 orthogonal neighbor and all other body cells have exactly 2.
+        Balances interesting patterns with reliable completion.
         
         Args:
             rows: Grid rows
@@ -147,121 +119,83 @@ class SnakePuzzleGenerator:
         Raises:
             ValueError: If generation fails completely
         """
-        max_attempts = 100
+        max_attempts = 30  # Moderate number of attempts
         
         for attempt in range(max_attempts):
+            print(f"\tAttempt {attempt + 1}/{max_attempts}")
+            
             # Start with a random cell
             start_pos = (random.randint(0, rows - 1), random.randint(0, cols - 1))
             path = [start_pos]
             path_set = {start_pos}
             
-            # Stack for backtracking
-            backtrack_stack = [(start_pos, [])]
+            # Growth with bailout limits
+            max_steps = target_length * 4  # Reasonable step limit
+            steps = 0
+            stuck_count = 0
+            max_stuck = 5  # Give up after being stuck too many times
             
-            while len(path) < target_length:
+            while len(path) < target_length and steps < max_steps and stuck_count < max_stuck:
+                steps += 1
                 current_pos = path[-1]
                 r, c = current_pos
                 
-                # Get all orthogonally adjacent positions
-                orthogonal_moves = [
+                # Get orthogonally adjacent positions
+                possible_moves = [
                     (r - 1, c),  # Up
                     (r + 1, c),  # Down  
                     (r, c - 1),  # Left
                     (r, c + 1)   # Right
                 ]
                 
-                # Filter valid moves
+                # Filter moves with proper constraints (always enforced)
                 valid_moves = []
-                for new_pos in orthogonal_moves:
+                for new_pos in possible_moves:
                     nr, nc = new_pos
                     
-                    # Check bounds
+                    # Basic checks (always apply)
                     if not (0 <= nr < rows and 0 <= nc < cols):
                         continue
-                        
-                    # Can't revisit existing path
                     if new_pos in path_set:
                         continue
                     
-                    # **KEY CHECK**: Snake can't be orthogonally adjacent to any existing body part
-                    # except the current position it's extending from
+                    # Apply orthogonal adjacency constraint (always enforced)
                     is_adjacent_to_body = False
                     for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                         adjacent_pos = (nr + dr, nc + dc)
                         if adjacent_pos in path_set and adjacent_pos != current_pos:
                             is_adjacent_to_body = True
                             break
-                    
                     if is_adjacent_to_body:
                         continue
                     
-                    # Check diagonal touching constraint
+                    # Apply diagonal touching constraint (always enforced)
                     if self._would_create_diagonal_touching(path_set, new_pos):
                         continue
                     
                     valid_moves.append(new_pos)
                 
                 if valid_moves:
-                    # Randomly select from valid moves
+                    # Choose next position
                     next_pos = random.choice(valid_moves)
                     path.append(next_pos)
                     path_set.add(next_pos)
-                    
-                    # Update backtrack stack with remaining moves
-                    remaining_moves = [move for move in valid_moves if move != next_pos]
-                    backtrack_stack.append((next_pos, remaining_moves))
-                    
+                    stuck_count = 0  # Reset stuck counter
                 else:
-                    # No valid moves - backtrack
-                    if len(backtrack_stack) <= 1:
+                    # Simple backtrack
+                    if len(path) <= 1:
                         break
                     
-                    # Remove current position from path
-                    removed_pos = path.pop()
-                    path_set.remove(removed_pos)
-                    backtrack_stack.pop()
+                    # Remove 1-2 recent cells
+                    backtrack_amount = min(random.randint(1, 2), len(path) - 1)
+                    for _ in range(backtrack_amount):
+                        if len(path) > 1:
+                            removed = path.pop()
+                            path_set.remove(removed)
                     
-                    # Try alternative moves from previous position
-                    while backtrack_stack:
-                        prev_pos, remaining_moves = backtrack_stack[-1]
-                        
-                        if remaining_moves:
-                            # Try next alternative move
-                            next_pos = remaining_moves.pop(0)
-                            
-                            # Re-verify it's still valid (need to check orthogonal adjacency again)
-                            nr, nc = next_pos
-                            if (0 <= nr < rows and 0 <= nc < cols and 
-                                next_pos not in path_set):
-                                
-                                # Check orthogonal adjacency constraint again
-                                is_adjacent_to_body = False
-                                for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                                    adjacent_pos = (nr + dr, nc + dc)
-                                    if adjacent_pos in path_set and adjacent_pos != prev_pos:
-                                        is_adjacent_to_body = True
-                                        break
-                                
-                                if (not is_adjacent_to_body and 
-                                    not self._would_create_diagonal_touching(path_set, next_pos)):
-                                    
-                                    path.append(next_pos)
-                                    path_set.add(next_pos)
-                                    backtrack_stack.append((next_pos, []))
-                                    break
-                        else:
-                            # No more alternatives, backtrack further
-                            if len(backtrack_stack) <= 1:
-                                break
-                            removed_pos = path.pop()
-                            path_set.remove(removed_pos)
-                            backtrack_stack.pop()
-                    else:
-                        # Exhausted all backtracking options
-                        break
+                    stuck_count += 1
             
-            # Check if we got a decent path
-            if len(path) >= max(2, target_length * 0.7):
+            if len(path) >= target_length:
                 start_cell = path[0]
                 end_cell = path[-1]
                 return set(path), start_cell, end_cell
