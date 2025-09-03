@@ -324,3 +324,12 @@ class SnakeSolver:
             "start_cell": str(self.puzzle.start_cell),
             "end_cell": str(self.puzzle.end_cell)
         }
+    
+    def get_solve_stats(self) -> Dict[str, int]:
+        """
+        Get statistics from the last solve attempt.
+        
+        Returns:
+            Dictionary with solving statistics including iterations, cutting planes added, etc.
+        """
+        return self._solve_stats.copy()
