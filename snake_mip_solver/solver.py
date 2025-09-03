@@ -1,6 +1,6 @@
 from .puzzle import SnakePuzzle
 from ortools.linear_solver import pywraplp
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Set, List
 
 
 class SnakeSolver:
@@ -31,8 +31,15 @@ class SnakeSolver:
         if not self.solver:
             raise ValueError(f"Could not create solver of type '{solver_type}'")
         
+        self._solve_stats: Dict[str, int] = {
+            'iterations': 0,
+            'cutting_planes_added': 0,
+            'disconnected_solutions_found': 0
+        }        
+        
         # Setup the mathematical model
         self.variables: Dict[Tuple[int, int], pywraplp.Variable] = {}
+
         self._add_variables()
         self._add_constraints()
 
@@ -165,12 +172,13 @@ class SnakeSolver:
                 grid_vars = [self.variables[pos] for pos in positions]
                 self.solver.Add(sum(grid_vars) <= 3) # type: ignore
 
-    def solve(self, verbose: bool = False) -> Optional[set]:
+    def solve(self, verbose: bool = False, max_iterations: int = 10) -> Optional[set]:
         """
-        Solve the puzzle and return the solution.
+        Solve the puzzle using iterative connectivity enforcement.
         
         Args:
             verbose: If True, print solver information
+            max_iterations: Maximum number of iterations for cutting plane method
             
         Returns:
             Set of (row, col) tuples representing the snake path, or None if no solution
@@ -181,30 +189,130 @@ class SnakeSolver:
             for key, value in info.items():
                 print(f"  {key}: {value}")
         
-        status = self.solver.Solve()
+        # Reset solve statistics
+        self._solve_stats = {
+            'iterations': 0,
+            'cutting_planes_added': 0,
+            'disconnected_solutions_found': 0
+        }
         
-        if status == pywraplp.Solver.OPTIMAL:
-            # Extract solution: cells where x_ij = 1
-            solution = set()
-            for position, variable in self.variables.items():
-                if variable.solution_value() == 1:
-                    solution.add(position)
+        for iteration in range(max_iterations):
+            self._solve_stats['iterations'] = iteration + 1
             
-            if verbose:
-                print(f"Solution found with {len(solution)} cells")
+            if verbose and iteration > 0:
+                print(f"Iteration {iteration + 1}")
             
-            return solution
-        elif status == pywraplp.Solver.FEASIBLE:
-            # This should not happen since the problem doesn't have an objective function.
-            raise RuntimeError("Unexpected FEASIBLE status for constraint satisfaction problem")
-        elif status == pywraplp.Solver.INFEASIBLE:
-            if verbose:
-                print("No solution exists for this puzzle")
-            return None
-        else:
-            if verbose:
-                print(f"Solver status: {status}")
-            return None
+            status = self.solver.Solve()
+            
+            if status == pywraplp.Solver.OPTIMAL:
+                # Extract solution: cells where x_ij = 1
+                solution = set()
+                for position, variable in self.variables.items():
+                    if variable.solution_value() == 1:
+                        solution.add(position)
+                
+                # Check connectivity using puzzle validation
+                if self.puzzle.is_valid_solution(solution):
+                    if verbose:
+                        print(f"Valid solution found with {len(solution)} cells")
+                    return solution
+                else:
+                    # Solution is invalid - check if it's due to disconnected components
+                    disconnected_components = self._find_disconnected_components(solution)
+                    
+                    if len(disconnected_components) > 1:
+                        # We have disconnected components - add cutting plane constraints
+                        self._solve_stats['disconnected_solutions_found'] += 1
+                        
+                        if verbose:
+                            print(f"Found disconnected solution with {len(disconnected_components)} components, adding cutting plane constraint")
+                        
+                        constraints_added = self._add_cutting_plane_constraints(disconnected_components)
+                        self._solve_stats['cutting_planes_added'] += constraints_added
+                    else:
+                        # Solution is invalid for other reasons (not disconnected components)
+                        if verbose:
+                            print("Solution failed validation for reasons other than connectivity")
+                        return None
+                    
+            elif status == pywraplp.Solver.FEASIBLE:
+                # This should not happen since the problem doesn't have an objective function.
+                raise RuntimeError("Unexpected FEASIBLE status for constraint satisfaction problem")
+            elif status == pywraplp.Solver.INFEASIBLE:
+                if verbose:
+                    print("No solution exists for this puzzle")
+                return None
+            else:
+                if verbose:
+                    print(f"Solver status: {status}")
+                return None
+        
+        if verbose:
+            print(f"No valid solution found after {max_iterations} iterations")
+        return None
+    
+    def _find_disconnected_components(self, solution: Set[Tuple[int, int]]) -> List[Set[Tuple[int, int]]]:
+        """Find all disconnected components in the solution."""
+        unvisited = solution.copy()
+        components = []
+        
+        while unvisited:
+            # Start DFS from any unvisited node
+            start = next(iter(unvisited))
+            component = set()
+            stack = [start]
+            
+            while stack:
+                current = stack.pop()
+                if current in unvisited:
+                    unvisited.remove(current)
+                    component.add(current)
+                    
+                    # Add orthogonal neighbors to stack
+                    adjacent_positions = self.puzzle.get_tiles_by_offsets(current, self.puzzle._orthogonal_offsets)
+                    for neighbor in adjacent_positions:
+                        if neighbor in unvisited:
+                            stack.append(neighbor)
+            
+            components.append(component)
+        
+        return components
+    
+    def _add_cutting_plane_constraints(self, components: List[Set[Tuple[int, int]]]) -> int:
+        """
+        Add constraints to prevent the current disconnected solution.
+        
+        Args:
+            components: List of disconnected components found in the solution
+            
+        Returns:
+            Number of cutting plane constraints added
+        """
+        if len(components) <= 1:
+            # No disconnected components, nothing to do
+            return 0
+        
+        # Find the component that contains both start and end (this is the valid component)
+        valid_component = None
+        for component in components:
+            if self.puzzle.start_cell in component and self.puzzle.end_cell in component:
+                valid_component = component
+                break
+        
+        # For each invalid component (doesn't contain both start and end),
+        # add a constraint that prevents all cells in that component from being activated simultaneously
+        constraints_added = 0
+        for component in components:
+            if component != valid_component and len(component) > 0:
+                # Add constraint: sum of variables in this component <= |component| - 1
+                component_vars = [self.variables[pos] for pos in component]
+                self.solver.Add(sum(component_vars) <= len(component) - 1)  # type: ignore
+                constraints_added += 1
+        
+        if constraints_added == 0:
+            raise RuntimeError("Expected to add cutting plane constraints but none were added")
+        
+        return constraints_added
 
     def get_solver_info(self) -> Dict[str, str]:
         """Get information about the solver and problem size."""
@@ -216,3 +324,12 @@ class SnakeSolver:
             "start_cell": str(self.puzzle.start_cell),
             "end_cell": str(self.puzzle.end_cell)
         }
+    
+    def get_solve_stats(self) -> Dict[str, int]:
+        """
+        Get statistics from the last solve attempt.
+        
+        Returns:
+            Dictionary with solving statistics including iterations, cutting planes added, etc.
+        """
+        return self._solve_stats.copy()

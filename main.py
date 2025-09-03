@@ -33,6 +33,16 @@ def example_adjacent_touching():
     )
     return puzzle
 
+def example_disjoint():
+    """Disjoint example (infeasible)"""
+    puzzle = SnakePuzzle(
+        row_sums=[4, 3, 3, 3, 0],
+        col_sums=[3, 0, 4, 2, 4],
+        start_cell=(0, 0),
+        end_cell=(2, 0)
+    )
+    return puzzle
+
 def example_6x6_easy():
     """6x6 easy example"""
     puzzle = SnakePuzzle(
@@ -97,6 +107,10 @@ def main():
 
     puzzle_12x12 = example_12x12_evil()
     solve_puzzle(puzzle_12x12, "12x12 Evil")
+
+    puzzle_disjoint = example_disjoint()
+    print(puzzle_disjoint.get_board_visualization())
+    solve_puzzle(puzzle_disjoint, "Disjoint Example")
 
 if __name__ == "__main__":
     main()

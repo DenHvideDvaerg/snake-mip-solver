@@ -173,7 +173,7 @@ class TestSnakeSolver:
         assert "solver_type:" in output
         assert "num_variables:" in output
         assert "num_constraints:" in output
-        assert "Solution found with" in output
+        assert "Valid solution found with" in output
         assert solution is not None
 
     def test_verbose_solve_infeasible(self):
@@ -238,3 +238,148 @@ class TestSnakeSolver:
         solver = SnakeSolver(puzzle_single_col)
         solution = solver.solve()
         assert solution == {(0,0), (1,0)}
+
+    def test_connectivity_cutting_planes_disjoint_infeasible(self):
+        """Test that the cutting plane approach correctly identifies disjoint puzzles as infeasible."""
+        # This puzzle forces disconnected components and should be infeasible
+        puzzle = SnakePuzzle(
+            row_sums=[4, 3, 3, 3, 0],
+            col_sums=[3, 0, 4, 2, 4],
+            start_cell=(0, 0),
+            end_cell=(2, 0)
+        )
+        solver = SnakeSolver(puzzle)
+        
+        # Should return None (infeasible)
+        solution = solver.solve(verbose=False, max_iterations=5)
+        assert solution is None
+        
+        # Check that cutting planes were used
+        stats = solver.get_solve_stats()
+        assert stats['iterations'] >= 2  # Should take more than 1 iteration
+        assert stats['disconnected_solutions_found'] >= 1
+        assert stats['cutting_planes_added'] >= 1
+
+    def test_connectivity_cutting_planes_stats_initialization(self):
+        """Test that solve statistics are properly initialized."""
+        puzzle = SnakePuzzle(
+            row_sums=[2, 1, 2],
+            col_sums=[1, 3, 1],
+            start_cell=(0, 0),
+            end_cell=(2, 2)
+        )
+        solver = SnakeSolver(puzzle)
+        
+        # Stats should be initialized before solving
+        initial_stats = solver.get_solve_stats()
+        assert initial_stats['iterations'] == 0
+        assert initial_stats['cutting_planes_added'] == 0
+        assert initial_stats['disconnected_solutions_found'] == 0
+        
+        # Solve and check stats are updated
+        solution = solver.solve(verbose=False)
+        assert solution is not None
+        
+        final_stats = solver.get_solve_stats()
+        assert final_stats['iterations'] >= 1
+
+    def test_connectivity_cutting_planes_stats_reset(self):
+        """Test that solve statistics are reset between solve calls."""
+        puzzle = SnakePuzzle(
+            row_sums=[4, 3, 3, 3, 0],
+            col_sums=[3, 0, 4, 2, 4],
+            start_cell=(0, 0),
+            end_cell=(2, 0)
+        )
+        solver = SnakeSolver(puzzle)
+        
+        # First solve attempt
+        solution1 = solver.solve(verbose=False, max_iterations=3)
+        stats1 = solver.get_solve_stats()
+        
+        # Second solve attempt (note: cutting planes from first solve persist)
+        solution2 = solver.solve(verbose=False, max_iterations=3)
+        stats2 = solver.get_solve_stats()
+        
+        # Both should be None (infeasible)
+        assert solution1 is None
+        assert solution2 is None
+        
+        # Stats should be reset, not accumulated
+        assert stats1['iterations'] == 2
+        assert stats2['iterations'] == 1
+        
+        # First solve should find disconnected solutions
+        assert stats1['disconnected_solutions_found'] == 1
+        # Second solve shouldn't find any disconnected solution because cutting planes from first solve persist
+        assert stats2['disconnected_solutions_found'] == 0
+
+    def test_connectivity_valid_puzzle_no_cutting_planes(self):
+        """Test that valid puzzles don't trigger cutting planes."""
+        puzzle = SnakePuzzle(
+            row_sums=[1, 1, 1, 3, 2, 5],
+            col_sums=[4, 3, 1, 1, 1, 3],
+            start_cell=(0, 0),
+            end_cell=(3, 5)
+        )
+        solver = SnakeSolver(puzzle)
+        
+        solution = solver.solve(verbose=False)
+        assert solution is not None
+        
+        # Should solve in 1 iteration with no cutting planes
+        stats = solver.get_solve_stats()
+        assert stats['iterations'] == 1
+        assert stats['cutting_planes_added'] == 0
+        assert stats['disconnected_solutions_found'] == 0
+
+    def test_connectivity_max_iterations_parameter(self):
+        """Test that max_iterations parameter is respected."""
+        puzzle = SnakePuzzle(
+            row_sums=[4, 3, 3, 3, 0],
+            col_sums=[3, 0, 4, 2, 4],
+            start_cell=(0, 0),
+            end_cell=(2, 0)
+        )
+        solver = SnakeSolver(puzzle)
+        
+        # Test with limited iterations
+        solution0 = solver.solve(verbose=False, max_iterations=0)
+        assert solution0 is None
+        stats0 = solver.get_solve_stats()
+        assert stats0['iterations'] == 0
+
+        solution1 = solver.solve(max_iterations=1)
+        assert solution1 is None
+        stats1 = solver.get_solve_stats()
+        assert stats1['iterations'] == 1
+
+    def test_connectivity_verbose_output(self):
+        """Test that verbose output works correctly with cutting planes."""
+        puzzle = SnakePuzzle(
+            row_sums=[4, 3, 3, 3, 0],
+            col_sums=[3, 0, 4, 2, 4],
+            start_cell=(0, 0),
+            end_cell=(2, 0)
+        )
+        solver = SnakeSolver(puzzle)
+        
+        # Capture stdout
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        try:
+            solution = solver.solve(verbose=True, max_iterations=3)
+            assert solution is None
+            
+            # Restore stdout and check output
+            sys.stdout = sys.__stdout__
+            output = captured_output.getvalue()
+            
+            # Should contain expected verbose messages
+            assert "Solving Snake puzzle..." in output
+            assert "Found disconnected solution" in output or "No solution exists" in output
+            
+        finally:
+            # Ensure stdout is restored even if test fails
+            sys.stdout = sys.__stdout__

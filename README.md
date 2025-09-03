@@ -216,6 +216,8 @@ The mathematical formulation includes six types of constraints:
 5. **Diagonal Non-Touching Constraints** - preventing diagonal self-contact
 6. **No 2×2 Block Constraints** - preventing disconnected filled blocks
 
+**Connectivity Enforcement:** Even with these constraints it is still theoretically possible to have disconnected components in a solution. Therefore, the solver uses an **iterative cutting planes approach** to ensure true connectivity.
+
 See the complete formulation in **[Complete Mathematical Model Documentation](https://github.com/DenHvideDvaerg/snake-mip-solver/blob/main/model.md)**
 
 ## License
