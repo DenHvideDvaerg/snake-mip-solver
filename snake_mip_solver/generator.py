@@ -50,61 +50,38 @@ class SnakePuzzleGenerator:
         # Calculate realistic target length based on snake constraints
         target_length = max(2, int(rows * cols * fill_percentage))
         
-        # Try multiple starting points for better success rate
+        # Try multiple attempts until we get a valid path
         max_attempts = 50
-        best_path = None
-        best_start = None
-        best_end = None
         
         for attempt in range(max_attempts):
-            try:
-                print(f"Attempt {attempt + 1}/{max_attempts}")
-                # Generate path using organic growth strategy
-                snake_path, start_cell, end_cell = self._generate_snake_path_organic(
-                    rows, cols, target_length
-                )
-                
-                if snake_path and len(snake_path) >= 2:
-                    # Keep track of best attempt
-                    if best_path is None or len(snake_path) > len(best_path):
-                        best_path = snake_path
-                        best_start = start_cell
-                        best_end = end_cell
-                    
-                    if len(snake_path) >= target_length: 
-                        break
-                        
-            except Exception:
-                # Continue to next attempt if generation fails
-                continue
-        
-        if best_path is None:
+            result = self._generate_snake_path(rows, cols, target_length)
+            if result is not None:
+                snake_path, start_cell, end_cell = result
+                break
+        else:
             raise RuntimeError(f"Failed to generate any valid puzzle after {max_attempts} attempts")
         
-        # These should not be None if best_path is not None
-        assert best_start is not None and best_end is not None, "Internal error: missing start/end points"
-        
-        # Calculate row and column sums from the best path found
+        # Calculate row and column sums from the generated path
         row_sums: List[Union[int, None]] = [0] * rows
         col_sums: List[Union[int, None]] = [0] * cols
         
-        for r, c in best_path:
+        for r, c in snake_path:
             row_sums[r] += 1  # type: ignore
             col_sums[c] += 1  # type: ignore
         
         # Create puzzle instance
-        puzzle = SnakePuzzle(row_sums, col_sums, best_start, best_end)
+        puzzle = SnakePuzzle(row_sums, col_sums, start_cell, end_cell)
         
         # Verify the generated path is a valid solution
-        if puzzle.is_valid_solution(best_path):
-            return puzzle, best_path
+        if puzzle.is_valid_solution(snake_path):
+            return puzzle, snake_path
         else:
             raise RuntimeError("Generated path is not a valid solution")
     
-    def _generate_snake_path_organic(self, rows: int, cols: int, 
-                                target_length: int) -> Tuple[Set[Tuple[int, int]], Tuple[int, int], Tuple[int, int]]:
+    def _generate_snake_path(self, rows: int, cols: int, 
+                                target_length: int) -> Optional[Tuple[Set[Tuple[int, int]], Tuple[int, int], Tuple[int, int]]]:
         """
-        Generate a valid snake path using simple random walk with smart constraints.
+        Generate a valid snake path using random walk with backtracking.
         
         Balances interesting patterns with reliable completion.
         
@@ -114,15 +91,11 @@ class SnakePuzzleGenerator:
             target_length: Desired path length
             
         Returns:
-            Tuple of (path_set, start_cell, end_cell)
-            
-        Raises:
-            ValueError: If generation fails completely
+            Tuple of (path_set, start_cell, end_cell) if successful, None if failed
         """
         max_attempts = 30  # Moderate number of attempts
         
         for attempt in range(max_attempts):
-            print(f"\tAttempt {attempt + 1}/{max_attempts}")
             
             # Start with a random cell
             start_pos = (random.randint(0, rows - 1), random.randint(0, cols - 1))
@@ -148,7 +121,7 @@ class SnakePuzzleGenerator:
                     (r, c + 1)   # Right
                 ]
                 
-                # Filter moves with proper constraints (always enforced)
+                # Filter moves with proper constraints
                 valid_moves = []
                 for new_pos in possible_moves:
                     nr, nc = new_pos
@@ -159,7 +132,7 @@ class SnakePuzzleGenerator:
                     if new_pos in path_set:
                         continue
                     
-                    # Apply orthogonal adjacency constraint (always enforced)
+                    # Apply orthogonal adjacency constraint
                     is_adjacent_to_body = False
                     for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                         adjacent_pos = (nr + dr, nc + dc)
@@ -169,20 +142,20 @@ class SnakePuzzleGenerator:
                     if is_adjacent_to_body:
                         continue
                     
-                    # Apply diagonal touching constraint (always enforced)
+                    # Apply diagonal touching constraint
                     if self._would_create_diagonal_touching(path_set, new_pos):
                         continue
                     
                     valid_moves.append(new_pos)
                 
                 if valid_moves:
-                    # Choose next position
+                    # Grow the path
                     next_pos = random.choice(valid_moves)
                     path.append(next_pos)
                     path_set.add(next_pos)
                     stuck_count = 0  # Reset stuck counter
                 else:
-                    # Simple backtrack
+                    # Backtrack
                     if len(path) <= 1:
                         break
                     
@@ -200,7 +173,7 @@ class SnakePuzzleGenerator:
                 end_cell = path[-1]
                 return set(path), start_cell, end_cell
         
-        raise ValueError(f"Failed to generate snake path after {max_attempts} attempts")
+        return None  # Failed to generate valid path
 
     def _would_create_diagonal_touching(self, existing_path: Set[Tuple[int, int]], 
                                       new_pos: Tuple[int, int]) -> bool:
