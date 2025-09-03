@@ -144,6 +144,59 @@ The necessity of this constraint is demonstrated by the 12×12 'Evil' puzzle use
  5 x x x x x _ _ _ _ _ _ _
 ```
 
+## Connectivity Enforcement: Iterative Cutting Planes
+
+While the six constraint types above model the basic snake puzzle rules, they are not sufficient to guarantee that the filled cells form a single connected component. The **Snake Path Connectivity Constraints** (constraint 4) ensure local connectivity properties but cannot prevent globally disconnected components that each individually satisfy the local connectivity rules.
+
+### The Disconnection Problem
+
+Consider a puzzle solution where filled cells form multiple disconnected components. Each component may satisfy:
+- Start/end constraints (if a component contains the start or end cell)
+- Row/column sum constraints (distributed across components)
+- Local connectivity constraints (within each component)
+- Diagonal non-touching constraints (no conflicts between distant components)
+- 2×2 block constraints (within each component)
+
+Such a solution would be accepted by the basic MIP formulation but violates the fundamental snake rule requiring a single connected path.
+
+### Cutting Planes Solution
+
+To address this limitation, the solver implements an **iterative cutting planes approach**:
+
+1. **Solve the MIP** with the six basic constraint types
+2. **Check connectivity** of any solution found using graph traversal
+3. **If disconnected components exist:**
+   - Identify all disconnected components
+   - Add **cutting plane constraints** that eliminate disconnected components
+   - Return to step 1 with the augmented constraint set
+4. **If fully connected:** return the valid solution
+5. **If no solution exists:** the puzzle is infeasible
+
+### Cutting Plane Constraints
+
+When a disconnected solution is found, cutting plane constraints are added to eliminate it. For each disconnected component C, a constraint is added:
+
+```
+∑_{(i,j) ∈ C} x_{i,j} ≤ |C| - 1
+```
+
+This constraint prevents the exact combination of cells in component C from being simultaneously selected, forcing the solver to find a different solution in subsequent iterations.
+
+### Example: Disjoint Puzzle
+
+Consider this example puzzle designed to test connectivity. Although the puzzle is impossible, the MIP model (without the cutting plane constraints) returns the solution shown.
+
+```
+  3 0 4 2 4
+4 S _ x x x
+3 x _ x _ x
+3 E _ x _ x
+3 _ _ x x x
+0 _ _ _ _ _
+```
+
+The cycle in columns 2 to 4 satisfy all the basic constraints. However, the iterative cutting planes approach correctly identifies the disconnected cycle and forbids it. On the subsequent solve, the puzzle is correctly identified as infeasible. 
+
 ## Complete MIP Formulation
 
 **Variables:**
