@@ -17,7 +17,9 @@ Snake is a logic puzzle where you must create a single connected path on a grid 
 - **Row and column constraints** - each row/column must have a specific number of filled cells
   - **Missing constraints variant** - supports puzzles where some row/column constraints are unknown (specified as `None`)
 
-This solver models the puzzle as a **Mixed Integer Programming (MIP)** problem to find solutions.
+This package provides:
+- **SnakeSolver** - models puzzles as Mixed Integer Programming (MIP) problems to find solutions
+- **SnakePuzzleGenerator** - creates random valid puzzles using random walk and backtracking
 
 ## Installation
 
@@ -76,7 +78,7 @@ def example_12x12_evil():
 ## Usage
 
 ```python
-from snake_mip_solver import SnakePuzzle, SnakeSolver
+from snake_mip_solver import SnakePuzzle, SnakeSolver, SnakePuzzleGenerator
 import time
 
 def solve_puzzle(puzzle, name):
@@ -193,6 +195,56 @@ The repository includes a complete example in `main.py`:
 
 ```bash
 python main.py
+```
+
+## Generating Random Puzzles
+
+The `SnakePuzzleGenerator` class allows you to create random Snake puzzles with valid solutions. Puzzles are created using random walk with backtracking to create interesting, non-trivial snake patterns that adhere to all puzzle rules. 
+
+### Parameters and Features
+
+- **`rows`, `cols`** (int): Grid dimensions (must be > 0)
+- **`fill_percentage`** (float): Target percentage of cells to fill (0.0 < value ≤ 1.0)
+  - Generator will achieve this target or fail completely - choose sensible values (~50% max works well)
+- **`seed`** (int, optional): Random seed for reproducible generation
+
+### Usage
+
+```python
+from snake_mip_solver import SnakePuzzleGenerator, SnakeSolver
+
+# Generate random puzzle
+generator = SnakePuzzleGenerator(seed=42)
+random_puzzle, solution_path = generator.generate(
+    rows=12, 
+    cols=12, 
+    fill_percentage=0.5  # Target 50% of cells filled
+)
+
+# Display the generated puzzle with its solution
+print(random_puzzle.get_board_visualization(solution_path))
+
+# Verify the solver returns the same solution
+calculated_solution = SnakeSolver(random_puzzle).solve()
+print(f'Calculated solution matches: {solution_path == calculated_solution}')
+```
+
+### Output
+```
+  7 5 9 5 4 6 6 3 8 5 8 6
+8 x x x _ _ _ x x x x x _
+4 x _ x _ _ _ x _ _ _ x _
+7 x _ x _ x x x _ _ x x _
+5 x _ x _ x _ _ _ x x _ _
+7 x _ x x x _ S _ x _ _ E
+6 x _ _ _ _ _ x x x _ x x
+5 x x x x _ _ _ _ _ _ x _
+6 _ _ _ x _ x x x x _ x _
+6 _ _ x x _ x _ _ x _ x x
+5 _ x x _ _ x _ _ x _ _ x
+5 _ x _ _ _ x _ _ x x _ x
+8 _ x x x x x _ _ _ x x x
+Calculated solution matches: True
 ```
 
 ## Testing

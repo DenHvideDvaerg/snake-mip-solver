@@ -1,4 +1,4 @@
-from snake_mip_solver import SnakePuzzle, SnakeSolver
+from snake_mip_solver import SnakePuzzle, SnakeSolver, SnakePuzzleGenerator
 import time
 
 
@@ -111,6 +111,22 @@ def main():
     puzzle_disjoint = example_disjoint()
     print(puzzle_disjoint.get_board_visualization())
     solve_puzzle(puzzle_disjoint, "Disjoint Example")
+
+    # Generate random puzzle
+    print(f"\n" + "="*60)
+    print(f"RANDOM PUZZLE GENERATION")
+    print("="*60)
+
+    generator = SnakePuzzleGenerator(seed=42)
+    random_puzzle, solution_path = generator.generate(
+        rows=12, 
+        cols=12, 
+        fill_percentage=0.50
+    )
+    print(random_puzzle.get_board_visualization(solution_path))
+
+    calculated_solution = SnakeSolver(random_puzzle).solve()
+    print(f'Calculated solution matches: {solution_path == calculated_solution}')
 
 if __name__ == "__main__":
     main()
