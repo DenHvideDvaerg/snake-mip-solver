@@ -21,6 +21,11 @@ This package provides:
 - **SnakeSolver** - models puzzles as Mixed Integer Programming (MIP) problems to find solutions
 - **SnakePuzzleGenerator** - creates random valid puzzles using random walk and backtracking
 
+## Try It Online
+
+🚀 **[Interactive Dashboard](https://snake-dashboard.streamlit.app/)** - Try the solver in your browser with a user-friendly interface built with Streamlit!
+
+
 ## Installation
 
 ```bash
